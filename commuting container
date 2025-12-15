@@ -1,0 +1,116 @@
+Podman Container & Image Workflow
+1. Run an Alpine Container
+
+Command:
+
+podman run --name=alpainebash -it docker.io/library/alpine:latest sh
+
+
+Explanation:
+
+--name=alpainebash → Assigns a name to the container for easy reference.
+
+-it → Opens an interactive terminal (stdin + TTY).
+
+docker.io/library/alpine:latest → Pulls the Alpine Linux image.
+
+sh → Starts the default shell (Alpine uses sh by default; Bash is not preinstalled).
+
+To use Bash inside Alpine:
+
+apk add bash
+bash
+
+2. Check All Containers
+
+Command:
+
+podman ps -a
+
+
+Explanation:
+
+Lists all containers, including running and stopped.
+
+Columns: CONTAINER ID, IMAGE, COMMAND, STATUS, NAMES.
+
+Start a stopped container: podman start <name_or_id>
+
+Remove a container: podman rm <name_or_id>
+
+3. Inspect Container Changes
+
+Command:
+
+podman diff alpainebash
+
+
+Explanation:
+
+Shows filesystem changes compared to the original image.
+
+Symbols:
+
+A → Added files
+
+C → Changed files
+
+D → Deleted files
+
+4. Commit Container to a New Image
+
+Command:
+
+podman commit alpainebash mainak/distro
+
+
+Explanation:
+
+Saves the current state of the container as a new image.
+
+mainak/distro → New image name.
+
+5. List Local Images
+
+Command:
+
+podman images
+
+
+Explanation:
+
+Shows all images stored locally.
+
+Columns: REPOSITORY, TAG, IMAGE ID, CREATED, SIZE.
+
+6. Inspect Image History
+
+Command:
+
+podman history mainak/distro
+
+
+Explanation:
+
+Shows all layers of the image and commands that created them.
+
+Columns: IMAGE ID, CREATED, CREATED BY, SIZE, COMMENT.
+
+Useful for auditing changes before pushing to a registry.
+
+7. Run the Committed Image
+
+Command:
+
+podman run -it --name=mycontainer mainak/distro sh
+
+
+Explanation:
+
+-it → Opens interactive terminal.
+
+--name=mycontainer → Names the container for easy reference.
+
+sh → Starts shell inside the container.
+
+Without -it, container will start and exit immediately if no foreground process exists.
