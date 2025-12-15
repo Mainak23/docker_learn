@@ -3,7 +3,12 @@ podman --version
 
 # 2. Search Apache image
 podman search httpd --limit 3
-
+""
+What httpd does
+Listens on port 80 (HTTP) or 443 (HTTPS)
+Receives browser requests (GET /index.html)
+Sends back web pages (HTML, CSS, images, APIs)
+"""
 # 3. Pull Apache image
 podman pull docker.io/library/httpd:latest
 
