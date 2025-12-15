@@ -1,0 +1,55 @@
+Rootless Podman
+############################################
+Definition: Runs containers as a non-root user.
+
+Ports <1024: Cannot bind directly (privileged ports).
+
+Example: HTTP → 80, HTTPS → 443, SSH → 22
+
+Must use port mapping, e.g., 8080:80.
+
+Security: Safer because a compromised container cannot escalate privileges on the host.
+
+File system: Container files are owned by the user, cannot access arbitrary host files.
+
+System integration: Limited; cannot modify system-level configs or services.
+
+Networking: Uses slirp4netns for virtual network; isolated from host network unless mapped.
+
+Auto-start: Can use systemd --user to start containers on login/reboot.
+
+Use case: Multi-tenant servers, development, production where host security is critical.
+
+#################################################
+Rootful Podman
+#################################################
+Definition: Runs containers as root user.
+
+Ports <1024: Can bind directly to privileged ports.
+
+Example: HTTP → 80, HTTPS → 443, SSH → 22
+
+Security: Higher risk; container escape can compromise the host.
+
+File system: Full access to host paths and devices.
+
+System integration: Can run system-level services, manage low-level networking.
+
+Networking: Containers can use host networking freely.
+
+Auto-start: Can use standard systemd services for full host integration.
+
+Use case: Admin-managed servers, legacy apps, situations needing privileged access.
+
+##############################################
+Key Takeaways
+#################################################
+Rootless = safer, restricted access, non-root ports
+
+Rootful = powerful, direct access, more risk
+
+Ports <1024 restriction in rootless = feature, not bug
+
+Rootless + reverse proxy = production-grade setup
+
+Rootful = only if your app must access host-level resources directly
