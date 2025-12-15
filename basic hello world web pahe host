@@ -1,0 +1,41 @@
+# 1. Check Podman installation
+podman --version
+
+# 2. Search Apache image
+podman search httpd --limit 3
+
+# 3. Pull Apache image
+podman pull docker.io/library/httpd:latest
+
+# 4. Run Apache container with FIXED name
+podman run -d -p 8080:80 --name apache_web docker.io/library/httpd:latest
+
+# 5. Check running container
+podman ps
+
+# 6. Test Apache from host
+curl http://localhost:8080
+
+# 7. Enter container (interactive shell)
+podman exec -it apache_web bash
+
+# 8. Inside container: check web root
+ls /usr/local/apache2/htdocs
+
+# 9. Exit container shell
+exit
+
+# 10. Copy index.html from host → container (cp fullpath cointainername:destination path)
+podman cp index.html apache_web:/usr/local/apache2/htdocs/
+
+# 11. Verify copied file
+podman exec -it apache_web ls /usr/local/apache2/htdocs
+
+# 12. Stop container
+podman stop apache_web
+
+# 13. Remove container
+podman rm apache_web
+
+# 14. Remove image
+podman rmi docker.io/library/httpd:latest
