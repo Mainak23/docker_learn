@@ -1,0 +1,265 @@
+# Podman & Linux Basics — Clean End‑to‑End Notes
+
+## 1. Podman Basics
+
+### What is Podman?
+
+* Podman is a **daemonless container engine**
+* Docker‑compatible CLI
+* Supports **rootless containers** (better security)
+
+Command pattern:
+
+```bash
+podman <command> [OPTIONS] IMAGE [COMMAND]
+```
+
+---
+
+## 2. Running Containers
+
+### Correct Alpine run
+
+```bash
+podman run -it --name os docker.io/library/alpine
+```
+
+Flags:
+
+* `-i` → keep STDIN open
+* `-t` → allocate terminal
+* `--name` → container name
+
+Rules:
+
+* Options **must come before** image
+* Container names must be **unique**
+
+---
+
+## 3. Container Lifecycle
+
+| Stage          | Command               |
+| -------------- | --------------------- |
+| Create + start | `podman run`          |
+| Stop           | `podman stop os`      |
+| Restart        | `podman start -ai os` |
+| Delete         | `podman rm os`        |
+
+Important:
+
+* Stopped containers still exist on disk
+* `podman ps` → running only
+* `podman ps -a` → all containers
+
+---
+
+## 4. Inspecting Containers
+
+### List containers
+
+```bash
+podman ps
+podman ps -a
+```
+
+### Size usage
+
+```bash
+podman ps -s
+```
+
+### What changed inside container
+
+```bash
+podman diff os
+```
+
+Diff codes:
+
+* `A` → Added
+* `C` → Changed
+* `D` → Deleted
+
+Principle:
+
+> Containers should be **stateless** — changes belong in images or volumes
+
+---
+
+## 5. Images & Registries
+
+### Searching images
+
+```bash
+podman search alpine
+podman search --help
+```
+
+### Registry config file
+
+```text
+/etc/containers/registries.conf
+```
+
+Example:
+
+```conf
+unqualified-search-registries = ["docker.io", "quay.io"]
+```
+
+Meaning:
+
+* `podman pull alpine` searches registries **in order**
+* First match wins
+
+---
+
+## 6. Security Risk (Very Important)
+
+### Unqualified image name attack
+
+If you run:
+
+```bash
+podman pull foobar
+```
+
+An attacker can publish `foobar` in a public registry.
+
+### Prevention (Best Practices)
+
+1. **Always use full image name**
+
+```bash
+podman pull docker.io/library/alpine:3.20
+```
+
+2. Restrict registries:
+
+```conf
+unqualified-search-registries = ["myregistry.com"]
+```
+
+3. Enforce explicit names:
+
+```conf
+short-name-mode = "enforcing"
+```
+
+---
+
+## 7. Vim Swap File Warning (E325)
+
+Meaning:
+
+* File already open in another Vim session
+* Or previous edit crashed
+
+Safe steps:
+
+1. Check process:
+
+```bash
+ps -fp <PID>
+```
+
+2. Recover if needed:
+
+```bash
+sudo vim -r /etc/containers/registries.conf
+```
+
+3. Remove swap only if no editor is running:
+
+```bash
+sudo rm /etc/containers/.registries.conf.swp
+```
+
+Rule:
+
+> Never delete swap files blindly in `/etc`
+
+---
+
+## 8. Disk Usage & Cleanup
+
+### Disk usage overview
+
+```bash
+podman system df
+```
+
+Interpretation:
+
+* **Reclaimable** = safe to free
+
+### Cleanup
+
+```bash
+podman system prune        # safe
+podman system prune -a     # aggressive (removes unused images)
+```
+
+Volumes are NOT deleted automatically:
+
+```bash
+podman volume prune
+```
+
+---
+
+## 9. Linux Shell Essentials
+
+### Output redirection
+
+```bash
+echo "hello" > text.txt   # overwrite
+echo "hello" >> text.txt  # append
+```
+
+Redirection operators:
+
+| Operator | Meaning         |
+| -------- | --------------- |
+| `>`      | overwrite       |
+| `>>`     | append          |
+| `2>`     | stderr          |
+| `&>`     | stdout + stderr |
+
+---
+
+## 10. Key Mental Models (Memorize)
+
+* Containers ≠ processes
+* Stopped ≠ deleted
+* Images are **read‑only layers**
+* Writable layer growth = bad design
+* Unqualified image names = **security smell**
+* `prune` frees disk, not memory
+
+---
+
+## 11. Safe Learning Workflow
+
+```bash
+podman run --rm -it alpine
+podman ps -a
+podman diff <container>
+podman system prune
+```
+
+---
+
+### End Goal
+
+You should now:
+
+* Understand container lifecycle
+* Read Podman disk usage confidently
+* Avoid registry hijacking
+* Clean your system safely
+
+✔ Clean
+✔ Secure
+✔ Production‑ready
