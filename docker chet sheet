@@ -47,7 +47,7 @@ podman build . -t myfirstimage
 
 
 run comand
-podman run -it   -p 8080:8000   b351a8ce3ab6
+podman run -it   -p 8080:8000   b351a8ce3ab6 --------------> 8080 is host post where podman transfer it trafics from 8000 (inside podman port)
 podman run -it e14d8cf0c63b bash -c "cd font_end && exec bash"
 
 """
