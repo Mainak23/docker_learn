@@ -1,0 +1,93 @@
+FROM rockylinux:9
+
+RUN dnf install -y python3 && dnf clean all
+
+WORKDIR /app
+COPY index.html .
+
+EXPOSE 8000
+CMD ["python3", "-m", "http.server", "8000","--bind", "0.0.0.0"]
+
+
+image comands
+podman history my1stimage
+podman inspect my1stimage
+
+
+cointainer commandsd
+podman ps
+podman ps -a
+podman run -it  e14d8cf0c63b (interactive)
+
+
+
+
+
+
+
+Build comand
+podman build . -t myfirstimage
+
+run comand
+podman run -it   -p 8080:8000   b351a8ce3ab6
+podman run -it e14d8cf0c63b bash -c "cd font_end && exec bash"
+
+"""
+Why exec bash matters
+Replaces subshell
+Keeps session alive
+Correct PID 1 behavior
+"""
+
+
+
+
+http://localhost:8080/
+
+Full Podman reset (containers + images + networks + cache)
+podman system reset -f
+
+
+path 
+
+FROM rockylinux:9
+
+#RUN dnf install -y python3 && dnf clean all
+
+#WORKDIR /app --->not createing 
+COPY test_folder .
+
+EXPOSE 8000
+
+podman run -it 513bfbbac171
+[root@54e773483ab7 /]# ls
+afs  bin  dev  etc  font_end  home  lib  lib64	lost+found  main.py  media  mnt  opt  proc  root  run  sbin  srv  sys  tmp  usr  var
+
+case 2
+FROM rockylinux:9
+
+#RUN dnf install -y python3 && dnf clean all
+
+WORKDIR /app
+COPY test_folder .
+
+EXPOSE 8000
+CMD ["bash", "-c", "cd font_end && python3 -m http.server 8000 --bind 0.0.0.0"]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
