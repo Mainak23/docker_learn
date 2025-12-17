@@ -74,6 +74,11 @@ COPY test_folder .
 EXPOSE 8000
 CMD ["bash", "-c", "cd font_end && python3 -m http.server 8000 --bind 0.0.0.0"]
 
+Key rule:
+
+Each comma-separated item = one argv element
+No shell parsing happens unless you explicitly start a shell
+
 
 
 
