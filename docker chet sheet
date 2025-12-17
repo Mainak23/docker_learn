@@ -138,7 +138,9 @@ Databases
 Logs
 Anything stateful
 
-
+#####################3
+podman build --help
+####################
 
 Multi-stage 
 Multi-stage builds are mandatory in prod
