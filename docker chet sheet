@@ -9,6 +9,28 @@ EXPOSE 8000
 CMD ["python3", "-m", "http.server", "8000","--bind", "0.0.0.0"]
 
 
+
+
+
+1. Container lifecycle
+Image → Created → Running → Paused → Exited → Removed
+Image = immutable blueprint
+Container = running process + writable layer
+PID 1 controls container life
+If PID 1 exits → container stops
+run = create + start
+exec = enter existing container
+
+
+Containers need:
+Read-only image layers
+One writable layer
+Zero copying
+Fast startup
+OverlayFS gives a union filesystem.
+
+
+
 image comands
 podman history my1stimage
 podman inspect my1stimage
@@ -20,13 +42,9 @@ podman ps -a
 podman run -it  e14d8cf0c63b (interactive)
 
 
-
-
-
-
-
 Build comand
 podman build . -t myfirstimage
+
 
 run comand
 podman run -it   -p 8080:8000   b351a8ce3ab6
@@ -38,7 +56,6 @@ Replaces subshell
 Keeps session alive
 Correct PID 1 behavior
 """
-
 
 
 
@@ -61,7 +78,7 @@ EXPOSE 8000
 
 podman run -it 513bfbbac171
 [root@54e773483ab7 /]# ls
-afs  bin  dev  etc  font_end  home  lib  lib64	lost+found  main.py  media  mnt  opt  proc  root  run  sbin  srv  sys  tmp  usr  var
+afs  bin  dev  etc  font_end  home  lib  lib64	lost+found  main.py  media  mnt  opt  proc  root  run  sbin  srv  sys  tmp  usr  var ----> find out file inside test folder not test folder
 
 case 2
 FROM rockylinux:9
@@ -75,13 +92,59 @@ EXPOSE 8000
 CMD ["bash", "-c", "cd font_end && python3 -m http.server 8000 --bind 0.0.0.0"]
 
 Key rule:
-
 Each comma-separated item = one argv element
 No shell parsing happens unless you explicitly start a shell
 
+Volume in podman 
+
+OverlayFS
+OverlayFS is a Linux kernel filesystem, not a container feature.
+Its job:
+Merge multiple directories into one virtual filesystem
+
+| Term     | Meaning                            |
+| -------- | ---------------------------------- |
+| lowerdir | One or more read-only directories  |
+| upperdir | Writable directory                 |
+| workdir  | Scratch space (required by kernel) |
+| merged   | What processes see                 |
+
+
+ML workloads do:
+Large sequential reads (datasets, checkpoints)
+Massive small writes (logs, temp files, tensor caches)
+Frequent metadata ops (stat, open, close)
+
+
+How Podman uses OverlayFS
+Podman itself does not implement OverlayFS.
+Podman only:
+Prepares directories
+Asks the kernel to mount OverlayFS
+Manages lifecycle
+
+OverlayFS is optimized for:
+Read-heavy, write-light
+App binaries, not data pipelines
+
+OverlayFS is fine for:
+Python code
+Binaries
+Small config files
+
+OverlayFS is bad for:
+ML data
+Databases
+Logs
+Anything stateful
 
 
 
+Multi-stage 
+Multi-stage builds are mandatory in prod
+Single-stage images = amateur
+Smaller images = faster deploy + safer
+If you need bash in runtime, rethink design
 
 
 
