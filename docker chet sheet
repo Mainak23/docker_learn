@@ -8,6 +8,27 @@ COPY index.html .
 EXPOSE 8000
 CMD ["python3", "-m", "http.server", "8000","--bind", "0.0.0.0"]
 
+case 2
+FROM rockylinux:9
+
+RUN dnf install -y python3 && dnf clean all
+
+WORKDIR /app
+COPY test_folder/font_end .-------->inside docker copy everything inside font_end not font_end folder
+
+EXPOSE 8000
+CMD ["bash", "-c", "cd html_tag && python3 -m http.server 8000 --bind 0.0.0.0"]
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -61,11 +82,6 @@ Correct PID 1 behavior
 
 
 
-http://localhost:8080/
-
-Full Podman reset (containers + images + networks + cache)
-podman system reset -f
-
 
 path 
 
@@ -92,6 +108,7 @@ COPY test_folder .
 
 EXPOSE 8000
 CMD ["bash", "-c", "cd font_end && python3 -m http.server 8000 --bind 0.0.0.0"]
+
 
 Key rule:
 Each comma-separated item = one argv element
@@ -202,10 +219,6 @@ Location	When to use
 
 
 
-
-
-
-
 When you should NOT use containers for DBs
 If:
 Single server
@@ -239,6 +252,11 @@ No automation
 
 #####################3
 podman build --help
+
+http://localhost:8080/
+
+Full Podman reset (containers + images + networks + cache)
+podman system reset -f
 ####################
 
 Multi-stage 
