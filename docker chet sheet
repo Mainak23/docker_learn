@@ -41,6 +41,8 @@ podman ps
 podman ps -a
 podman run -it  e14d8cf0c63b (interactive)
 
+volume commands
+
 
 Build comand
 podman build . -t myfirstimage
@@ -97,6 +99,26 @@ No shell parsing happens unless you explicitly start a shell
 
 Volume in podman 
 
+Why volumes exist (first principles)
+A container is ephemeral.
+Container writable layer = temporary
+podman rm → all container data is gone
+Image layers = read-only
+So the problem is:
+Where do we keep data that must survive container restarts, upgrades, crashes?
+Answer: Volumes (or bind mounts).
+
+Without volume (default behavior)
+
+Image (read-only layers)
+↓
+Container writable layer (OverlayFS upperdir)
+
+If your app writes to /data:
+Data lives in container’s writable layer
+Stored in OverlayFS upperdir
+When container is removed → data is deleted
+
 OverlayFS
 OverlayFS is a Linux kernel filesystem, not a container feature.
 Its job:
@@ -137,6 +159,83 @@ ML data
 Databases
 Logs
 Anything stateful
+
+
+With volume (what actually happens)
+Example:
+podman run -v myvol:/app/data myimage
+
+This means:
+
+Host volume (real filesystem)
+        ↑
+      mounted
+        ↑
+Container path /app/data
+
+Important rule (this answers your question directly):
+Data is NOT copied into the container.
+The container sees the host data directly.
+
+Can you open these files directly?
+❌ No
+They are:
+Binary
+Page-based
+Engine-version specific
+Checksummed and encrypted internally
+
+Where you SHOULD mount container storage (best practice)
+❌ Never use
+/
+/boot
+tmpfs
+
+✅ Best locations
+Location	When to use
+/mnt/docker-data	External disk
+/data/containers	Separate internal disk
+/srv/containers	Server-standard layout
+
+
+
+
+
+
+
+
+
+
+When you should NOT use containers for DBs
+If:
+Single server
+One SQL Server instance
+Stable schema
+No frequent redeployments
+No CI/CD
+Bare-metal performance matters
+
+When containerized DB makes sense for you
+Use Podman/Docker if:
+You want clean rollback
+You want staging/prod parity
+You deploy frequently
+You plan Kubernetes later
+You want infra discipline
+Don’t use it if:
+One DB
+Rare changes
+Performance is king
+No automation
+
+
+
+
+
+
+
+
+
 
 #####################3
 podman build --help
