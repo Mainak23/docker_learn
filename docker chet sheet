@@ -233,15 +233,152 @@ ls List volumes
 prune Remove all unused volumes
 rm Remove one or more volumes
 
+commands#################
+podman volume create pgdata
+/home/mainak/.local/share/containers/storage/volumes/pgdata/_data
+
+sudo podman volume create pgdata----root full
+/var/lib/containers/storage/volumes/pgdata/_data
+
+Hidden directories in Linux start with a dot (.):
+.local ← hidden
+
+podman volume ls
+podman volume inspect pgdata
+podman ps -a --filter volume=pgdata ---which cointainer
+podman volume rm pgdata
+podman volume prune
+
+all comands
+| Command   | Description                  | Example                                  |
+| --------- | ---------------------------- | ---------------------------------------- |
+| `create`  | Create a new volume          | `podman volume create myvol`             |
+| `exists`  | Check if a volume exists     | `podman volume exists myvol`             |
+| `export`  | Export volume to tarball     | `podman volume export myvol > myvol.tar` |
+| `import`  | Import tarball into a volume | `podman volume import myvol myvol.tar`   |
+| `inspect` | Show detailed info of volume | `podman volume inspect myvol`            |
+| `ls`      | List all volumes             | `podman volume ls`                       |
+| `mount`   | Mount a volume filesystem    | `podman volume mount myvol`              |
+| `prune`   | Remove all unused volumes    | `podman volume prune`                    |
+| `reload`  | Reload volumes from plugins  | `podman volume reload`                   |
+| `rm`      | Remove one or more volumes   | `podman volume rm myvol`                 |
+| `unmount` | Unmount a volume filesystem  | `podman volume unmount myvol`            |
+
+
+export
+podman stop quirky_gates
+podman volume export pgdata > pgdata.tar (~/ : /home/user/ if not specifieds)
+ls -lh pgdata.tar
+tar tf pgdata.tar | head
+
+import
 
 
 
 
+Why Podman forbids custom paths
+Volumes must be portable
+Podman must manage SELinux labels
+Arbitrary paths = security + consistency problems
+
+Important warning (don’t skip)
+Import replaces existing volume data
+Stop containers using the volume before importing
+
+4️⃣ Why _data?
+Podman/Docker keep metadata in the volume directory.
+Your actual files are always inside _data/.
+
+confirm
+podman volume inspect pgdata
+
+podman run -d \
+  --name some-postgres \
+  -e POSTGRES_PASSWORD=mysecretpassword \
+  -v pgdata:/var/lib/postgresql/data:Z \
+  -p 5432:5432 \
+  postgres
 
 
+1️⃣ What exactly is happening with pgdata:/var/lib/postgresql/data
+-v pgdata:/var/lib/postgresql/data
+
+Left side → Host
+pgdata = Podman named volume
+
+Physically lives at:
+~/.local/share/containers/storage/volumes/pgdata/_data
 
 
+Right side → Container
+/var/lib/postgresql/data = PostgreSQL’s data directory
 
+Postgres must write here (WAL, tables, indexes)
+🔁 Result:
+
+Anything Postgres writes inside the container goes into the host volume.
+
+Delete container → data survives
+Delete volume → data is gone
+
+
+podman run -d -e POSTGRES_PASSWORD=mysecretpassword -p 5432:5432 b5caf683a8bb
+podman exec -it quirky_gates psql -U postgres
+
+postgres=#
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+INSERT INTO users (name, email)
+VALUES
+  ('Alice', 'alice@example.com'),
+  ('Bob', 'bob@example.com');
+
+SELECT * FROM users;
+
+ id | name  |       email        |     created_at
+----+-------+--------------------+---------------------
+  1 | Alice | alice@example.com  | 2025-...
+  2 | Bob   | bob@example.com    | 2025-...
+
+
+1️⃣ Requirement on host
+You must have psql client installed on your host.
+Check:
+psql --version
+
+If not installed (Ubuntu/Debian):
+sudo apt install postgresql-client
+
+2️⃣ Connect from host to the containerized Postgres
+psql -h localhost -p 5432 -U postgres
+
+postgres=#
+SELECT * FROM users;
+
+PGPASSWORD=mysecretpassword \
+psql -h localhost -p 5432 -U postgres -d postgres -c "SELECT * FROM users;"
+
+psql (host)
+   ↓ localhost:5432
+Podman port forward
+   ↓ container:5432
+Postgres server
+
+____________________________
+~/ : /home/mainak/
+___________________________
+
+Golden rules (lock these in)
+Anonymous volumes = dangerous for databases
+Always name your volumes
+Always pin Postgres versions
+Container deletion ≠ volume deletion
+Postgres will silently ignore incompatible data dirs
 
 
 
@@ -468,6 +605,29 @@ Choose the most isolated mode that still works for your app.
 | user network | High      | Yes | Medium      | Microservices   |
 | slirp4netns  | Medium    | Yes | Low         | Rootless        |
 | pasta        | Medium    | Yes | High        | Rootless (best) |
+
+Let’s explain only the PORT part, nothing else.
+0.0.0.0:5432 -> 5432/tcp
+Right side: 5432/tcp
+Port inside the container
+
+PostgreSQL always listens on TCP 5432
+This is the database’s internal socket
+
+Left side: 0.0.0.0:5432
+Port on your host machine
+0.0.0.0 = all network interfaces
+localhost (127.0.0.1)
+LAN IP
+
+any other attached interface
+Any connection hitting host:5432 is forwarded
+
+The arrow ->
+NAT port forwarding
+
+Podman maps:
+host:5432  →  container:5432
 
 
 Compose
