@@ -214,11 +214,6 @@ Location	When to use
 /data/containers	Separate internal disk
 /srv/containers	Server-standard layout
 
-
-
-
-
-
 When you should NOT use containers for DBs
 If:
 Single server
@@ -240,6 +235,264 @@ One DB
 Rare changes
 Performance is king
 No automation
+
+########
+network
+#########
+network command manages networks for Podman
+
+Podman has two network backends:
+Netavark (new) and CNI (old).
+Netavark is the default from Podman 4.0.
+CNI is deprecated and will be removed in Podman 5.0.
+Network CLI commands stay the same, but
+Network config files are different, so networks must be recreated if you switch backends.
+Backend is set in containers.conf.
+
+Podman ≤3.x → CNI
+Podman 4.x+ → Netavark
+Podman 5.0 → CNI gone
+
+Production rule (write this down)
+Never switch network backends on a running system without recreating networks and containers.
+
+Ignoring this causes:
+Broken DNS
+Containers not talking
+Silent failures
+
+
+Check current backend with:
+podman --version
+podman info --format '{{.Host.NetworkBackend}}'
+If you see error
+3.x → this error is expected
+4.x+ → system packages may be mismatched
+
+Podman 3.x (CNI only)
+There is no Netavark in Podman 3.x.
+So your backend is CNI by definition.
+Confirm by checking CNI config:
+ls ~/.config/cni/net.d/
+----> 87-podman.conflist  cni.lock
+
+What is 87-podman.conflist (important)
+This file defines:
+
+Bridge network
+Subnet (e.g. 10.88.0.0/16)
+Gateway
+IPAM rules
+Firewall + port mapping plugins
+It is the default Podman network.
+
+| Situation                      | Result              |
+| ------------------------------ | ------------------- |
+| You upgrade to Podman 4/5      | CNI ignored         |
+| Containers rely on old network | They fail           |
+| DNS resolution breaks          | Silent errors       |
+| You don’t recreate networks    | Debugging nightmare |
+
+CNI configs ≠ Netavark configs. Same CLI, different engine.
+
+If you upgrade from Podman 3 → 4:
+Existing CNI networks WILL NOT work
+You must recreate networks
+Containers depending on old networks will fail
+
+CNI and Netavark solve similar-looking problems but are built for different worlds.
+
+CNI = cluster networking (Kubernetes)
+Netavark = local container networking (Podman)
+
+Conceptual difference (WHY they exist)
+CNI (Container Network Interface)
+
+Goal:
+“When a container (pod) starts, tell the system how to connect it to the cluster network.”
+
+Key idea:
+CNI is a specification, not a tool
+Kubernetes calls CNI plugins
+
+Plugins decide:
+IP assignment
+Routing
+Firewall rules
+
+CNI assumes:
+Many nodes
+Flat network
+No NAT between pods
+Scale first, simplicity second
+
+Netavark
+Goal:
+“Give local containers working networking with minimal overhead.”
+
+Key idea:
+Netavark is a single-purpose engine
+Written specifically for Podman
+Opinionated and simple
+
+Netavark assumes:
+Single machine
+Containers come and go fast
+NAT is acceptable
+Developer/ops convenience matters
+
+| Aspect            | CNI (K8s)           | Netavark     |
+| ----------------- | ------------------- | ------------ |
+| Pod-to-pod        | Direct IP           | Often NAT    |
+| Cross-node        | Required            | Not needed   |
+| Load balancing    | Service abstraction | Port mapping |
+| Performance focus | Scale               | Simplicity   |
+
+Failure model (production insight)
+CNI failures:
+Pod stuck in ContainerCreating
+Node-specific
+Hard to debug
+Often invisible at first
+
+Netavark failures:
+Container won’t start
+Local and obvious
+Easy to reproduce
+
+NAT 
+NAT (Network Address Translation) is:
+A technique where a router rewrites IP addresses (and ports) so many private machines can share one public IP.
+
+Problem:
+IPv4 has limited addresses
+Private networks use non-routable IPs:
+10.x.x.x
+172.16–31.x.x
+192.168.x.x
+
+These cannot travel on the internet.
+
+Solution:
+➡️ NAT sits at the boundary and translates them.
+
+Mental model (lock this in)
+NAT differentiates machines using PORTS.
+Kubernetes differentiates pods using IPs.
+
+
+
+They are differentiated by PORT NUMBERS, not just IP addresses.
+IP + port together uniquely identify a connection.
+
+Step 1️⃣ What actually identifies a connection
+A network connection is identified by this 5-tuple:
+(Source IP, Source Port, Destination IP, Destination Port, Protocol)
+
+Example:
+(192.168.1.10, 43210, 8.8.8.8, 53, UDP)
+
+Step 2️⃣ What NAT really does (important correction)
+NAT does NOT only change the IP.
+It usually does PAT (Port Address Translation).
+
+So it changes:
+Source IP
+Source Port
+
+This is why thousands of machines can share one IP.
+
+Step 3️⃣ Concrete example (two pods, same public IP)
+
+Assume two pods:
+
+Pod	Private IP	Source Port
+Pod A	10.88.0.2	40001
+Pod B	10.88.0.3	40002
+
+Both access:
+
+8.8.8.8:53
+
+Before NAT
+10.88.0.2:40001 → 8.8.8.8:53
+10.88.0.3:40002 → 8.8.8.8:53
+
+After NAT (same public IP)
+203.0.113.5:55001 → 8.8.8.8:53
+203.0.113.5:55002 → 8.8.8.8:53
+
+
+NAT table:
+203.0.113.5:55001 ↔ 10.88.0.2:40001
+203.0.113.5:55002 ↔ 10.88.0.3:40002
+
+
+When replies come back:
+Port 55001 → Pod A
+Port 55002 → Pod B
+
+Step 4️⃣ Why ports are enough
+
+TCP has 65,535 ports
+UDP has 65,535 ports
+
+NAT can reuse ports across different destinations
+So a single IP can support millions of concurrent connections.
+
+Step 5️⃣ Incoming traffic (important limitation)
+
+Here’s the catch:
+❌ Incoming traffic cannot magically know which pod to reach.
+
+That’s why we need:
+DNAT / Port Forwarding
+PublicIP:80 → PodA:8080
+
+
+Choose the most isolated mode that still works for your app.
+
+| Mode         | Isolation | NAT | Performance | Use case        |
+| ------------ | --------- | --- | ----------- | --------------- |
+| bridge       | High      | Yes | Medium      | Default         |
+| host         | None      | No  | Very high   | Monitoring      |
+| none         | Total     | No  | N/A         | Secure jobs     |
+| user network | High      | Yes | Medium      | Microservices   |
+| slirp4netns  | Medium    | Yes | Low         | Rootless        |
+| pasta        | Medium    | Yes | High        | Rootless (best) |
+
+
+Compose
+
+| Concept   | What it does                                           | When you use it                                          |
+| --------- | ------------------------------------------------------ | -------------------------------------------------------- |
+| `build`   | Creates an **image** of your app (e.g., Flask API)     | When you have custom code                                |
+| `compose` | Launches **containers**, networks them, sets env/ports | When you want multi-container setup or service discovery |
+
+flask-api/
+  Dockerfile
+  requirements.txt 
+  app.py
+compose.yml
+
+proces
+podman build -t myflaskapi .
+podman-compose up -d
+
+run
+podman exec -it client sh
+curl http://api:5000
+
+
+Focus on:
+How pod IPs are assigned
+How pods talk across nodes
+How services route traffic
+How DNS works (CoreDNS)
+
+
+
+
 
 
 
