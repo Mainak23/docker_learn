@@ -1,0 +1,156 @@
+1️⃣ What goes in Dockerfile (IMAGE = “what the app is”)
+Always OK
+
+Base image (FROM)
+System dependencies (apt, dnf)
+Language deps (pip, npm, poetry)
+App source code (COPY)
+Working directory (WORKDIR)
+Build-time optimizations
+Default command (CMD / ENTRYPOINT)
+Non-secret defaults (ENV)
+EXPOSE (documentation only)
+User (USER)
+
+
+2️⃣ What goes in Compose (RUNTIME = “how it runs”)
+Always OK
+Which image to run
+Container names
+Ports (host:container)
+Networks
+Volumes (named / bind)
+Environment variables
+Secrets (via env/files)
+Restart policies
+Dependencies (depends_on)
+Healthchecks
+Resource limits
+Multiple services
+
+Ask:
+
+Does this change between machines/environments?
+Answer	Put it in
+No	Dockerfile
+Yes	Compose
+
+Why .dockerignore exists (1-line truth)
+Anything not ignored is sent to the build daemon and can leak, slow builds, or bloat images.
+
+
+podman run -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=StrongPass@123" -e "MSSQL_PID=Developer" -p 1433:1433  --name sqlpreview --hostname sqlpreview -d mcr.microsoft.com/mssql/server:2025-latest
+
+1️⃣ docker run
+
+Creates and starts a container from an image.
+
+Equivalent to:
+docker create + docker start
+
+2️⃣ Environment variables (-e)
+These configure SQL Server at startup.
+-e "ACCEPT_EULA=Y"
+Mandatory
+You legally accept Microsoft’s license
+Without this → container exits immediately
+
+-e "MSSQL_SA_PASSWORD=abc"
+Sets sa (system admin) password
+Used to log into SQL Server
+❌ abc is INVALID in real life
+
+SQL Server requires:
+≥ 8 characters
+Uppercase
+Lowercase
+Number
+Special character
+Example (valid):
+
+StrongPass@123
+
+-e "MSSQL_PID=Evaluation"
+Defines SQL Server edition.
+
+Value	Meaning
+Evaluation	Free, 180 days
+Developer	Free forever (best for dev)
+Express	Limited resources
+Enterprise	Paid
+
+👉 Use Developer for learning
+
+3️⃣ Port mapping
+-p 1433:1433
+
+Format:
+HOST_PORT : CONTAINER_PORT
+SQL Server listens on 1433 inside container
+Host exposes 1433
+
+Allows tools like:
+SSMS
+Azure Data Studio
+pyodbc
+
+Without this:
+DB is invisible outside container
+
+4️⃣ Container identity
+--name sqlpreview
+Human-readable container name
+Instead of random ID
+Used in:
+
+docker logs sqlpreview
+docker stop sqlpreview
+
+--hostname sqlpreview
+Internal hostname inside container
+Shows up in:
+hostname
+
+Useful for:
+SQL logs
+Clustering
+Replication
+
+Not required for simple setups.
+
+5️⃣ Detached mode
+-d
+Runs in background
+Terminal is free
+Without -d, logs flood your shell
+
+6️⃣ Image name
+mcr.microsoft.com/mssql/server:2025-latest
+
+Breakdown:
+Part	Meaning
+mcr.microsoft.com	Microsoft Container Registry
+mssql/server	SQL Server image
+2025-latest	SQL Server 2025 preview
+
+⚠️ Preview = not production
+
+7️⃣ What Docker does internally (important)
+Pulls image (if missing)
+Creates container filesystem
+Applies environment variables
+Sets hostname
+Maps port
+Starts SQL Server process
+SQL initializes system databases
+cheack
+curl http://localhost:1433/ping
+
+docker run -d \
+  -e "ACCEPT_EULA=Y" \
+  -e "MSSQL_SA_PASSWORD=StrongPass@123" \
+  -e "MSSQL_PID=Developer" \
+  -p 1433:1433 \
+  --name 55c3fe0f8428\
+  -v mssql_data:/var/opt/mssql \
+  mcr.microsoft.com/mssql/server:2025-latest
