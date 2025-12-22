@@ -21,18 +21,6 @@ CMD ["bash", "-c", "cd html_tag && python3 -m http.server 8000 --bind 0.0.0.0"]
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 1. Container lifecycle
 Image → Created → Running → Paused → Exited → Removed
 Image = immutable blueprint
@@ -79,8 +67,6 @@ Replaces subshell
 Keeps session alive
 Correct PID 1 behavior
 """
-
-
 
 
 path 
@@ -236,6 +222,29 @@ Rare changes
 Performance is king
 No automation
 
+
+Volume¶
+create Create a new volume
+exists Check if the given volume exists
+export Exports volume to external tar
+import Import tarball contents into a podman volume
+inspect Display detailed information on one or more volumes
+ls List volumes
+prune Remove all unused volumes
+rm Remove one or more volumes
+
+
+
+
+
+
+
+
+
+
+
+
+
 ########
 network
 #########
@@ -381,7 +390,6 @@ NAT differentiates machines using PORTS.
 Kubernetes differentiates pods using IPs.
 
 
-
 They are differentiated by PORT NUMBERS, not just IP addresses.
 IP + port together uniquely identify a connection.
 
@@ -482,6 +490,81 @@ podman-compose up -d
 run
 podman exec -it client sh
 curl http://api:5000
+
+One-line takeaway
+run is fine for one container, Compose is essential for multi-container apps with shared networks, DNS, and volumes.
+Dockerfile / Podmanfile = image definition only
+
+Dockerfile defines:
+Base image
+Files to copy
+Dependencies (pip install, apt install)
+Environment variables
+Default command (CMD)
+Exposed ports (optional, for documentation)
+It does not run containers or connect them to networks.
+
+2️⃣ Networking is runtime configuration
+Networks exist only when containers are running.
+Compose / podman run / Kubernetes YAML handles:
+Which containers are on which network
+Port mapping (host:container)
+DNS resolution between containers
+Isolation/security
+
+| Build (Dockerfile) | Runtime (Compose) |
+| ------------------ | ----------------- |
+| Static             | Dynamic           |
+| No IP              | IP assigned       |
+| No DNS             | Built-in DNS      |
+| No ports open      | Ports mapped      |
+| No neighbors       | Multi-container   |
+
+
+┌────────────────────┐
+│   Your Source Code │
+│  (Flask app, etc.) │
+└─────────┬──────────┘
+          │
+          ▼
+┌────────────────────┐
+│   Dockerfile       │
+│  - FROM            │
+│  - COPY            │
+│  - RUN pip install │
+│  - CMD             │
+│  - EXPOSE 5000     │  ← documentation only
+└─────────┬──────────┘
+          │  podman build
+          ▼
+┌────────────────────┐
+│     IMAGE          │
+│  myflaskapi:latest │
+│  (static artifact) │
+└────────────────────┘
+
+
+┌────────────────────┐
+│   Your Source Code │
+│  (Flask app, etc.) │
+└─────────┬──────────┘
+          │
+          ▼
+┌────────────────────┐
+│   Dockerfile       │
+│  - FROM            │
+│  - COPY            │
+│  - RUN pip install │
+│  - CMD             │
+│  - EXPOSE 5000     │  ← documentation only
+└─────────┬──────────┘
+          │  podman build
+          ▼
+┌────────────────────┐
+│     IMAGE          │
+│  myflaskapi:latest │
+│  (static artifact) │
+└────────────────────┘
 
 
 Focus on:
