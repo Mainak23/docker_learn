@@ -38,6 +38,13 @@ Zero copying
 Fast startup
 OverlayFS gives a union filesystem.
 
+| Action          | Result               |
+| --------------- | -------------------- |
+| `podman run`    | NEW container        |
+| `podman start`  | Existing container   |
+| `podman rm`     | Container destroyed  |
+| `podman commit` | Snapshot → new image |
+| `podman volume` | Persistent data      |
 
 
 image comands
@@ -265,6 +272,17 @@ all comands
 | `unmount` | Unmount a volume filesystem  | `podman volume unmount myvol`            |
 
 
+1️⃣ Remove a specific volume
+podman volume rm myvol
+If it fails with “volume is being used”, it means a container still references it.
+2️⃣ Find which container is using a volume
+podman ps -a --filter volume=myvol
+Then remove that container:
+podman rm -f <container_id>
+Retry volume removal.
+3️⃣ Remove all unused (dangling) volumes (safe)
+podman volume prune
+
 export
 podman stop quirky_gates
 podman volume export pgdata > pgdata.tar (~/ : /home/user/ if not specifieds)
@@ -272,6 +290,14 @@ ls -lh pgdata.tar
 tar tf pgdata.tar | head
 
 import
+podman volume create myvol
+podman volume import myvol new.tar
+podman run -d \
+  --name some-postgres \
+  -e POSTGRES_PASSWORD=mysecretpassword \
+  -v myvol:/var/lib/postgresql/data:Z \
+  -p 5432:5432 \
+  postgres
 
 
 
@@ -300,6 +326,9 @@ podman run -d \
   postgres
 
 
+
+
+
 1️⃣ What exactly is happening with pgdata:/var/lib/postgresql/data
 -v pgdata:/var/lib/postgresql/data
 
@@ -321,8 +350,14 @@ Anything Postgres writes inside the container goes into the host volume.
 Delete container → data survives
 Delete volume → data is gone
 
+#######INSPECTION##############
+podman inspect -f '{{.ImageName}} {{.Image}}' f51892489929
+podman ps -a --format "table {{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}"
+podman system reset -f
 
-podman run -d -e POSTGRES_PASSWORD=mysecretpassword -p 5432:5432 b5caf683a8bb
+###################################
+
+podman run -d -e POSTGRES_PASSWORD=mysecretpassword -p 5432:5432 b5caf683a8bb (Image id)
 podman exec -it quirky_gates psql -U postgres
 
 postgres=#
@@ -344,6 +379,36 @@ SELECT * FROM users;
 ----+-------+--------------------+---------------------
   1 | Alice | alice@example.com  | 2025-...
   2 | Bob   | bob@example.com    | 2025-...
+
+#use one volume by multiple cointainer
+Good for backups, analytics, migrations.
+
+podman volume create pgdata
+
+Primary Postgres (read-write)
+podman run -d \
+  --name pg-main \
+  -e POSTGRES_PASSWORD=secret \
+  -v pgdata:/var/lib/postgresql/data:Z \
+  -p 5432:5432 \
+  postgres:14
+
+Secondary container (read-only)
+podman run --rm -it \
+  --name pg-tools \
+  -v pgdata:/var/lib/postgresql/data:ro,Z \
+  postgres:14 \
+  bash
+
+
+
+podman run -d \
+  --name postgres14-mainak \
+  -e POSTGRES_PASSWORD=mysecretpassword \
+  -v pgdata:/var/lib/postgresql/data:Z \
+  -p 5432:5432 \
+  postgres:14
+
 
 
 1️⃣ Requirement on host
@@ -380,6 +445,8 @@ Always pin Postgres versions
 Container deletion ≠ volume deletion
 Postgres will silently ignore incompatible data dirs
 
+podman rm -f $(podman ps -aq)
+podman rmi -f $(podman images -aq)
 
 
 ########
@@ -732,18 +799,6 @@ How pod IPs are assigned
 How pods talk across nodes
 How services route traffic
 How DNS works (CoreDNS)
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 #####################3
