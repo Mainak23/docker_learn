@@ -17,7 +17,7 @@ WORKDIR /app
 COPY test_folder/font_end .-------->inside docker copy everything inside font_end not font_end folder
 
 EXPOSE 8000
-CMD ["bash", "-c", "cd html_tag && python3 -m http.server 8000 --bind 0.0.0.0"]
+CMD ["bash", "-c", "cd html_tag && python3 -m http.server 8000 --bind 0.0.0.0"] --> In bash -c, the -c flag means “execute the following string as a command
 
 
 
@@ -324,8 +324,6 @@ podman run -d \
   -v pgdata:/var/lib/postgresql/data:Z \
   -p 5432:5432 \
   postgres
-
-
 
 
 
@@ -815,6 +813,38 @@ Multi-stage builds are mandatory in prod
 Single-stage images = amateur
 Smaller images = faster deploy + safer
 If you need bash in runtime, rethink design
+
+In a Dockerfile, there are 17 officially supported instructions (as of current Docker spec). You don’t need all of them—most real Dockerfiles use ~6–8.
+
+All Dockerfile instructions
+
+FROM – base image
+RUN – execute build-time commands
+CMD – default runtime command
+LABEL – metadata
+EXPOSE – document ports
+ENV – environment variables
+ADD – copy files (with extra features)
+COPY – copy files (preferred over ADD)
+ENTRYPOINT – fixed runtime command
+VOLUME – mount point
+USER – set user
+WORKDIR – working directory
+ARG – build-time variables
+ONBUILD – trigger instruction for child images
+STOPSIGNAL – container stop signal
+HEALTHCHECK – container health probe
+SHELL – default shell for RUN
+
+Core commands (90% use cases)
+FROM
+WORKDIR
+COPY
+RUN
+ENV / ARG
+EXPOSE
+CMD or ENTRYPOINT
+
 
 
 
