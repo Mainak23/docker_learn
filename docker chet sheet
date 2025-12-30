@@ -814,6 +814,55 @@ Single-stage images = amateur
 Smaller images = faster deploy + safer
 If you need bash in runtime, rethink design
 
+First: what multi-stage build really is
+A multi-stage build uses multiple FROM blocks so that:
+
+Early stages = build / compile / install heavy stuff
+Final stage = runtime only, minimal files
+
+Only what you explicitly copy survives.
+
+python deployment in multistage,
+########################################################
+FROM python:3.12-slim AS builder
+WORKDIR /build
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt .
+RUN pip wheel --no-cache-dir --no-deps -w wheels -r requirements.txt
+FROM python:3.12-slim
+WORKDIR /app
+COPY --from=builder /build/wheels /wheels
+RUN pip install --no-cache /wheels/*
+COPY correct_folder/calc/app.py app.py
+EXPOSE 5000
+CMD ["python", "app.py"]
+############################################################
+
+
+| Part             | Meaning                                                  |
+| ---------------- | -------------------------------------------------------- |
+| `COPY`           | Copy files                                               |
+| `--from=builder` | Copy **from another stage**, not from your local machine |
+| `/build/wheels`  | Source path **inside builder container**                 |
+| `/wheels`        | Destination path **inside final container**              |
+
+
+podman build -t calc-app:1.0 .
+
+    -t → tag
+    calc-app → image name
+    1.0 → version tag
+    . → build context
+
+The build context is the directory you pass at the end of podman build.
+
+podman build -t myimage .
+
+Here, . = build context.
+Only files inside this directory are visible to COPY.(minus .dockerignore) 
+
 In a Dockerfile, there are 17 officially supported instructions (as of current Docker spec). You don’t need all of them—most real Dockerfiles use ~6–8.
 
 All Dockerfile instructions
