@@ -856,12 +856,28 @@ podman build -t calc-app:1.0 .
     1.0 → version tag
     . → build context
 
-The build context is the directory you pass at the end of podman build.
-
-podman build -t myimage .
-
 Here, . = build context.
 Only files inside this directory are visible to COPY.(minus .dockerignore) 
+
+REPOSITORY                TAG         IMAGE ID      CREATED             SIZE
+localhost/calc-app        1.0         b6cad8441a4d  21 seconds ago      217 MB
+<none>                    <none>      9d0b5068c254  About a minute ago  484 MB
+
+Meaning
+b6cad8441a4d → ✅ final image (runtime stage)
+9d0b5068c254 → ❌ dangling image (builder stage / intermediate)
+
+Multi-stage builds create intermediate images.
+When they are not tagged → shown as <none>:<none>.
+
+
+Why it exists at all
+Podman keeps it so that:
+layer cache can speed future builds
+But disk > cache → prune it.
+
+podman image prune ---Or clean all dangling images
+
 
 In a Dockerfile, there are 17 officially supported instructions (as of current Docker spec). You don’t need all of them—most real Dockerfiles use ~6–8.
 
